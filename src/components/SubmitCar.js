@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   Container,
@@ -12,8 +12,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Input,
 } from "@mui/material";
 import axios from "@/services/axios.js";
+import Dropzone from "./Dropzone.js";
+import ImageGride from "./ImageGrid.js";
 
 export default function SubmitCar() {
   const {
@@ -21,15 +24,35 @@ export default function SubmitCar() {
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
   } = useForm();
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [images, setImages] = useState([]);
+
+  const maxPictures = watch("maxPictures");
+
+  const onDrop = useCallback((acceptedFiles) => {
+    acceptedFiles.map((file) => {
+      const reader = new FileReader();
+
+      reader.onload = function (e) {
+        setImages((prevState) => [...prevState, e.target.result]);
+      };
+
+      reader.readAsDataURL(file);
+      return file;
+    });
+  }, []);
+
+  console.log({ maxPictures, images });
 
   const onSubmit = async (data) => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.post("/cars", data, {
+      const body = { ...data, images };
+      const response = await axios.post("/cars", body, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -37,6 +60,7 @@ export default function SubmitCar() {
       if (response.status === 201) {
         setSuccess("Car submitted successfully!");
         reset();
+        setImages([]);
       }
     } catch (err) {
       alert("Failed to submit car. Please try again.");
@@ -134,6 +158,7 @@ export default function SubmitCar() {
             error={!!errors.maxPictures}
             helperText={errors.maxPictures ? errors.maxPictures.message : ""}
           />
+          <Dropzone onDrop={onDrop} maxPictures={maxPictures} />
           <Button
             type="submit"
             fullWidth
@@ -144,6 +169,7 @@ export default function SubmitCar() {
             {loading ? <CircularProgress size={24} /> : "Submit"}
           </Button>
         </form>
+        <ImageGride images={images} />
       </Box>
     </Container>
   );
